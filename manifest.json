@@ -1,15 +1,22 @@
 {
-  "name": "Berkay Yılan Oyunu",
+  "name": "Yılan Oyunu",
   "short_name": "Yılan",
-  "start_url": "index.html",
+  "description": "Eğlenceli yılan oyunu - Berkay000.1",
+  "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#222831",
-  "theme_color": "#00adb5",
+  "background_color": "#222222",
+  "theme_color": "#4CAF50",
+  "orientation": "portrait",
   "icons": [
     {
       "src": "IMG-20250521-WA0013.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "IMG-20250521-WA0013.jpg",
       "sizes": "512x512",
-      "type": "image/jpg"
+      "type": "image/jpeg"
     }
   ]
 }
