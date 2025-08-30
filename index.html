@@ -1,176 +1,170 @@
-<!DOCTYPE html>
-<html lang="tr">  
-<head>  
-  <meta charset="UTF-8">  
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">  
-  <title>Berkayın yılan – Final</title>  
-  <style>  
-    body { margin:0; background:#222; color:#fff; font-family:Arial, sans-serif; text-align:center; }  
-    h1 { margin: 10px 0; }  
-    canvas { background:#111; border:2px solid #0f0; display:block; margin:10px auto; }  
-    button { padding:10px 20px; margin:5px; font-size:16px; border:none; border-radius:6px; background:#0f0; color:#111; cursor:pointer; }  
-    button:active { background:#0c0; }  
-    #menu, #gameover { margin-top:20px; }  
-    #controls button { width:50px; height:50px; font-size:18px; margin:3px; }  
-    #settingsBtn { position:fixed; top:10px; right:10px; padding:6px 12px; background:#00e5ff; color:#111; }  
-    #settingsPanel { display:none; position:fixed; top:50px; right:10px; background:rgba(0,0,0,0.8); padding:12px; border-radius:6px; }  
-    #settingsPanel label { display:block; margin:8px 0; color:#fff; }  
-  </style>  
-</head>  
-<body>  
-  <h1>🐍 Berkayın yılan oyunu 🐍 </h1>  
-  <p>Skor: <span id="score">0</span> | En Yüksek: <span id="high">0</span></p>  
-  <canvas id="game" width="400" height="400"></canvas>  
+ <!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Berkay - Online Yılan Oyunu</title>
+  <style>
+    body {
+      margin: 0;
+      background: black;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #00ff00;
+      font-family: monospace;
+    }
+    canvas {
+      border: 2px solid #00ff00;
+      background: #111;
+    }
+    #scoreboard {
+      margin-top: 20px;
+      padding: 10px;
+      background: #111;
+      border: 1px solid #00ff00;
+      width: 300px;
+      text-align: center;
+    }
+    #scoreboard h2 {
+      margin: 0 0 10px 0;
+      font-size: 18px;
+    }
+    #scores {
+      font-size: 14px;
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+  <h1>🐍 Berkay Yılan Oyunu (Online Skor)</h1>
+  <canvas id="gameCanvas" width="400" height="400"></canvas>
+  
+  <div id="scoreboard">
+    <h2>🌍 Online Skor Tablosu</h2>
+    <div id="scores">Yükleniyor...</div>
+  </div>
 
-  <div id="menu">  
-    <button onclick="startGame()">▶ Başla</button>  
-  </div>  
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js"></script>
 
-  <div id="gameover" style="display:none;">  
-    <h2>Kaybettin!</h2>  
-    <button onclick="startGame()">Tekrar Oyna</button>  
-  </div>  
+  <script>
+    // Firebase config (seninki)
+    const firebaseConfig = {
+      apiKey: "AIzaSyDCrdNoQiBpthpUH7m-EbXCgWDPErmcEU8",
+      authDomain: "coffee-spark-sample-app-f01da.firebaseapp.com",
+      projectId: "coffee-spark-sample-app-f01da",
+      storageBucket: "coffee-spark-sample-app-f01da.appspot.com",
+      messagingSenderId: "708637653571",
+      appId: "1:708637653571:web:a0d3c39606ec28480df2f6"
+    };
 
-  <div id="controls">  
-    <button onclick="setDir('UP')">⬆</button><br>  
-    <button onclick="setDir('LEFT')">⬅</button>  
-    <button onclick="setDir('DOWN')">⬇</button>  
-    <button onclick="setDir('RIGHT')">➡</button>  
-  </div>  
+    // Firebase başlat
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-  <button id="settingsBtn" onclick="toggleSettings()">⚙️</button>
+    // Oyun değişkenleri
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
 
-  <div id="settingsPanel">  
-    <label><input type="checkbox" id="musicToggle" onchange="toggleMusic()"> Müzik</label>  
-    <label>FPS:  
-      <select id="fpsSelect" onchange="changeFPS(this.value)">  
-        <option>30</option><option selected>60</option><option>90</option>  
-      </select>  
-    </label>  
-    <label>Grafik:  
-      <select id="gfxSelect" onchange="changeGfx(this.value)">  
-        <option value="normal">Normal</option>  
-        <option value="high">Yüksek</option>  
-      </select>  
-    </label>  
-    <label>Hız:  
-      <select id="speedSelect" onchange="changeSpeed(this.value)">  
-        <option value="200">Yavaş</option>  
-        <option value="150" selected>Normal</option>  
-        <option value="100">Hızlı</option>  
-      </select>  
-    </label>  
-  </div>  
+    let box = 20;
+    let snake = [{x: 9 * box, y: 10 * box}];
+    let direction;
+    let food = {
+      x: Math.floor(Math.random()*19+1) * box,
+      y: Math.floor(Math.random()*19+1) * box
+    };
+    let score = 0;
 
-  <!-- Senin repodaki müzik -->  
-  <audio id="bgMusic" loop>  
-    <source src="music.mp3" type="audio/mpeg">  
-  </audio>  
+    document.addEventListener("keydown", dir);
+    function dir(event) {
+      if(event.keyCode == 37 && direction != "RIGHT") direction = "LEFT";
+      else if(event.keyCode == 38 && direction != "DOWN") direction = "UP";
+      else if(event.keyCode == 39 && direction != "LEFT") direction = "RIGHT";
+      else if(event.keyCode == 40 && direction != "UP") direction = "DOWN";
+    }
 
-  <script>  
-    const canvas = document.getElementById("game"), ctx = canvas.getContext("2d"), box=20;  
-    let snake, dir, food, score, high = localStorage.getItem("high")||0, gameLoop, drawLoop;  
-    document.getElementById("high").innerText = high;  
-  
-    const music = document.getElementById("bgMusic");  
-    let musicOn = localStorage.getItem("musicOn")==="1";  
-    let fps = parseInt(localStorage.getItem("fps")||60);  
-    let gfx = localStorage.getItem("gfx")||"high";  
-    let speed = parseInt(localStorage.getItem("speed")||150);  
-  
-    document.getElementById("musicToggle").checked = musicOn;  
-    document.getElementById("fpsSelect").value = fps;  
-    document.getElementById("gfxSelect").value = gfx;  
-    document.getElementById("speedSelect").value = speed;  
-  
-    function toggleSettings(){   
-      const p=document.getElementById("settingsPanel");  
-      p.style.display = p.style.display==="block"?"none":"block";  
-    }  
-    function toggleMusic(){  
-      musicOn = !musicOn;  
-      localStorage.setItem("musicOn", musicOn?1:0);  
-      if(musicOn) music.play(); else music.pause();  
-    }  
-    function changeFPS(val){  
-      fps = parseInt(val); localStorage.setItem("fps", val);  
-      if(drawLoop){ clearInterval(drawLoop); drawLoop = setInterval(draw,1000/fps); }  
-    }  
-    function changeGfx(val){ gfx = val; localStorage.setItem("gfx", val); }  
-    function changeSpeed(val){ speed = parseInt(val); localStorage.setItem("speed", val); restartGame(); }  
-  
-    document.addEventListener("keydown", e => {  
-      if(e.keyCode===37 && dir!=="RIGHT") dir="LEFT";  
-      if(e.keyCode===38 && dir!=="DOWN") dir="UP";  
-      if(e.keyCode===39 && dir!=="LEFT") dir="RIGHT";  
-      if(e.keyCode===40 && dir!=="UP") dir="DOWN";  
-    });  
-  
-    function setDir(d){   
-      if(d==="LEFT"&&dir!=="RIGHT") dir=d;  
-      if(d==="RIGHT"&&dir!=="LEFT") dir=d;  
-      if(d==="UP"&&dir!=="DOWN") dir=d;  
-      if(d==="DOWN"&&dir!=="UP") dir=d;  
-    }  
-  
-    function startGame(){  
-      snake=[{x:9*box,y:10*box}]; score=0; dir=null;  
-      food = {x:rand()*box,y:rand()*box};  
-      document.getElementById("menu").style.display="none";  
-      document.getElementById("gameover").style.display="none";  
-  
-      clearInterval(gameLoop); clearInterval(drawLoop);  
-      gameLoop = setInterval(updateGame, speed);  
-      drawLoop = setInterval(draw,1000/fps);  
-      if(musicOn) music.play();  
-    }  
-    function restartGame(){  
-      clearInterval(gameLoop); clearInterval(drawLoop);  
-      gameLoop = setInterval(updateGame, speed);  
-      drawLoop = setInterval(draw,1000/fps);  
-    }  
-  
-    function rand(){ return Math.floor(Math.random()*19+1); }  
-  
-    function updateGame(){  
-      let nx=snake[0].x, ny=snake[0].y;  
-      if(dir==="LEFT") nx-=box;  
-      if(dir==="UP") ny-=box;  
-      if(dir==="RIGHT") nx+=box;  
-      if(dir==="DOWN") ny+=box;  
-  
-      if(nx===food.x&&ny===food.y){  
-        score++; food={x:rand()*box,y:rand()*box};  
-        if(score>high){ high=score;localStorage.setItem("high",high);document.getElementById("high").innerText=high;}  
-      } else snake.pop();  
-  
-      const newH={x:nx,y:ny};  
-      if(nx<0||ny<0||nx>=400||ny>=400||snake.some(s=>s.x===nx&&s.y===ny)){  
-        clearInterval(gameLoop); clearInterval(drawLoop);  
-        document.getElementById("gameover").style.display="block";  
-        return;  
-      }  
-      snake.unshift(newH);  
-      document.getElementById("score").innerText = score;  
-    }  
-  
-    function draw(){  
-      ctx.fillStyle = score>=5?"#003300":"#111";  
-      ctx.fillRect(0,0,400,400);  
-  
-      snake.forEach((s,i)=>{  
-        ctx.fillStyle = i? (gfx==="high"?"#0f0":"#ff0") : "#0f0";  
-        if(gfx==="high"){  
-          ctx.beginPath();  
-          ctx.arc(s.x+10,s.y+10,10,0,2*Math.PI);  
-          ctx.fill();  
-        } else ctx.fillRect(s.x,s.y,box,box);  
-      });  
-  
-      ctx.fillStyle="red";  
-      if(gfx==="high"){ ctx.beginPath(); ctx.arc(food.x+10,food.y+10,10,0,2*Math.PI); ctx.fill(); }  
-      else ctx.fillRect(food.x,food.y,box,box);  
-    }  
-  </script>  
-</body>  
+    function draw() {
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0,0,400,400);
+
+      for(let i = 0; i < snake.length; i++){
+        ctx.fillStyle = (i == 0)? "#00ff00" : "#009900";
+        ctx.fillRect(snake[i].x, snake[i].y, box, box);
+      }
+
+      ctx.fillStyle = "red";
+      ctx.fillRect(food.x, food.y, box, box);
+
+      let snakeX = snake[0].x;
+      let snakeY = snake[0].y;
+
+      if(direction == "LEFT") snakeX -= box;
+      if(direction == "UP") snakeY -= box;
+      if(direction == "RIGHT") snakeX += box;
+      if(direction == "DOWN") snakeY += box;
+
+      if(snakeX == food.x && snakeY == food.y){
+        score++;
+        saveScore(score); // Firebase'e kaydet
+        food = {
+          x: Math.floor(Math.random()*19+1) * box,
+          y: Math.floor(Math.random()*19+1) * box
+        };
+      } else {
+        snake.pop();
+      }
+
+      let newHead = {x: snakeX, y: snakeY};
+
+      // Çarpma kontrolü
+      if(snakeX < 0 || snakeY < 0 || snakeX >= 400 || snakeY >= 400 || collision(newHead, snake)){
+        clearInterval(game);
+        alert("Oyun bitti! Skorun: " + score);
+      }
+
+      snake.unshift(newHead);
+
+      ctx.fillStyle = "white";
+      ctx.fillText("Score: " + score, 10, 20);
+    }
+
+    function collision(head, array){
+      for(let i = 0; i < array.length; i++){
+        if(head.x == array[i].x && head.y == array[i].y){
+          return true;
+        }
+      }
+      return false;
+    }
+
+    let game = setInterval(draw, 100);
+
+    // 🔥 Skor Firebase'e kaydet
+    function saveScore(score){
+      const player = "Berkay_" + Math.floor(Math.random()*10000);
+      db.ref("scores/" + player).set({
+        name: player,
+        score: score
+      });
+    }
+
+    // 🔥 Skor Tablosunu Güncelle
+    const scoresDiv = document.getElementById("scores");
+    db.ref("scores").on("value", snapshot => {
+      const data = snapshot.val();
+      if(!data){
+        scoresDiv.innerHTML = "Henüz skor yok.";
+        return;
+      }
+      let list = "";
+      Object.values(data).sort((a,b) => b.score - a.score).forEach(p => {
+        list += p.name + ": " + p.score + "<br>";
+      });
+      scoresDiv.innerHTML = list;
+    });
+  </script>
+</body>
 </html>
