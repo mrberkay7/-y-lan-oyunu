@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Berkay000.1 - Yılan Oyunu</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.png" type="image/png">
   <style>
     body {
       margin: 0;
@@ -26,6 +28,8 @@
       cursor: pointer;
     }
     button:active { background: #008891; }
+    #controls { margin-top: 10px; }
+    #controls button { width: 60px; height: 60px; font-size: 20px; }
   </style>
 </head>
 <body>
@@ -33,11 +37,12 @@
   <p id="score">Skor: 0 | En Yüksek: 0 | Bölüm: 1</p>
   <canvas id="game" width="400" height="400"></canvas>
 
-  <!-- Başlat butonu -->
-  <button id="startBtn">🎮 Oyunu Başlat</button>
+  <!-- Başlat & Tekrarla butonları -->
+  <button id="startBtn">▶️ Oyunu Başlat</button>
+  <button id="restartBtn" style="display:none;">🔄 Tekrar Oyna</button>
 
-  <!-- Yön kontrol butonları -->
-  <div id="controls" style="display:none;">
+  <!-- Kontrol butonları -->
+  <div id="controls">
     <button onclick="changeDirection('UP')">⬆️</button><br>
     <button onclick="changeDirection('LEFT')">⬅️</button>
     <button onclick="changeDirection('DOWN')">⬇️</button>
@@ -48,35 +53,19 @@
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
     const box = 20;
+    let snake, direction, food, score, highScore, level, speed, game;
 
-    let snake;
-    let direction;
-    let food;
-    let score;
-    let highScore = localStorage.getItem("highScore") || 0;
-    let speed;
-    let game;
-    let level;
-
-    const colors = ["#393E46","#1E5128","#3E065F","#053742","#0F3460","#7D0633","#2E4C6D","#301B3F"];
-
-    // Elma resmi
-    const apple = new Image();
-    apple.src = "https://upload.wikimedia.org/wikipedia/commons/1/15/Red_Apple.jpg";
-
-    document.addEventListener("keydown", keyDown);
+    const levelColors = ["#393E46","#2E294E","#1E5128","#3D0000","#003638","#4C0070","#222831","#1B262C","#420516","#062925"];
 
     function initGame() {
       snake = [{x: 9 * box, y: 10 * box}];
       direction = null;
-      food = { x: Math.floor(Math.random() * 19 + 1) * box, y: Math.floor(Math.random() * 19 + 1) * box };
       score = 0;
-      speed = 200;
       level = 1;
-      document.body.style.backgroundColor = colors[0];
+      speed = 120;
+      food = { x: Math.floor(Math.random()*19+1)*box, y: Math.floor(Math.random()*19+1)*box };
+      highScore = localStorage.getItem("highScore") || 0;
       document.getElementById("score").innerText = "Skor: 0 | En Yüksek: " + highScore + " | Bölüm: " + level;
-      clearInterval(game);
-      game = setInterval(draw, speed);
     }
 
     function keyDown(event) {
@@ -85,6 +74,7 @@
       else if(event.keyCode === 39 && direction !== "LEFT") direction = "RIGHT";
       else if(event.keyCode === 40 && direction !== "UP") direction = "DOWN";
     }
+    document.addEventListener("keydown", keyDown);
 
     function changeDirection(dir) {
       if(dir === "LEFT" && direction !== "RIGHT") direction = "LEFT";
@@ -94,63 +84,52 @@
     }
 
     function draw() {
-      ctx.fillStyle = colors[(level-1) % colors.length];
+      ctx.fillStyle = levelColors[(level-1)%levelColors.length];
       ctx.fillRect(0, 0, 400, 400);
 
-      // Yılanı yuvarlak çiz
       for(let i = 0; i < snake.length; i++) {
+        ctx.fillStyle = i===0 ? "lime" : "green";
         ctx.beginPath();
         ctx.arc(snake[i].x+box/2, snake[i].y+box/2, box/2, 0, Math.PI*2);
-        ctx.fillStyle = (i === 0) ? "lime" : "yellowgreen";
         ctx.fill();
-        ctx.strokeStyle = "#000";
-        ctx.stroke();
       }
 
-      // Elmayı çiz
-      ctx.drawImage(apple, food.x, food.y, box, box);
+      // elma
+      ctx.fillStyle = "red";
+      ctx.beginPath();
+      ctx.arc(food.x+box/2, food.y+box/2, box/2, 0, Math.PI*2);
+      ctx.fill();
 
       let snakeX = snake[0].x;
       let snakeY = snake[0].y;
-
       if(direction === "LEFT") snakeX -= box;
       if(direction === "UP") snakeY -= box;
       if(direction === "RIGHT") snakeX += box;
       if(direction === "DOWN") snakeY += box;
 
+      // yedi mi?
       if(snakeX === food.x && snakeY === food.y) {
         score++;
-
-        if(score % 5 === 0 && level < 50) { // 5 elma yerse level atla
-          level++;
-          document.body.style.backgroundColor = colors[level % colors.length];
-          if(speed > 50) {
-            clearInterval(game);
-            speed -= 10;
-            game = setInterval(draw, speed);
-          }
-        }
-
+        if(score % 5 === 0 && level < 50) level++; // her 5 elmada level
         if(score > highScore) {
           highScore = score;
           localStorage.setItem("highScore", highScore);
         }
-
-        food = {
-          x: Math.floor(Math.random() * 19 + 1) * box,
-          y: Math.floor(Math.random() * 19 + 1) * box
-        };
+        food = { x: Math.floor(Math.random()*19+1)*box, y: Math.floor(Math.random()*19+1)*box };
+        if(speed > 60) {
+          clearInterval(game);
+          speed -= 5;
+          game = setInterval(draw, speed);
+        }
       } else {
         snake.pop();
       }
 
       let newHead = {x: snakeX, y: snakeY};
-
-      if(snakeX < 0 || snakeY < 0 || snakeX >= 20 * box || snakeY >= 20 * box || collision(newHead, snake)) {
+      if(snakeX < 0 || snakeY < 0 || snakeX >= 20*box || snakeY >= 20*box || collision(newHead, snake)) {
         clearInterval(game);
+        document.getElementById("restartBtn").style.display = "inline-block";
         alert("Oyun Bitti! Skor: " + score);
-        document.getElementById("startBtn").style.display = "inline-block";
-        document.getElementById("controls").style.display = "none";
         return;
       }
 
@@ -162,12 +141,22 @@
       return array.some(segment => segment.x === head.x && segment.y === head.y);
     }
 
-    // Başlat butonuna basınca oyun açılır
-    document.getElementById("startBtn").addEventListener("click", function() {
-      this.style.display = "none";
-      document.getElementById("controls").style.display = "block";
+    document.getElementById("startBtn").onclick = () => {
       initGame();
-    });
+      game = setInterval(draw, speed);
+      document.getElementById("startBtn").style.display = "none";
+    };
+
+    document.getElementById("restartBtn").onclick = () => {
+      initGame();
+      game = setInterval(draw, speed);
+      document.getElementById("restartBtn").style.display = "none";
+    };
+
+    // offline için service worker
+    if("serviceWorker" in navigator){
+      navigator.serviceWorker.register("sw.js");
+    }
   </script>
 </body>
 </html>
