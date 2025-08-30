@@ -45,15 +45,22 @@
         <option>30</option><option selected>60</option><option>90</option>
       </select>
     </label>
+    <label>Hız:
+      <select id="speedSelect" onchange="changeSpeed(this.value)">
+        <option value="170">Yavaş</option>
+        <option value="130" selected>Normal</option>
+        <option value="90">Hızlı</option>
+      </select>
+    </label>
     <label>Grafik:
       <select id="gfxSelect" onchange="changeGfx(this.value)">
-        <option value="normal">Normal</option><option value="high">Yüksek</option>
+        <option value="normal">Normal</option><option value="high" selected>Yüksek</option>
       </select>
     </label>
   </div>
 
   <audio id="bgMusic" loop>
-    <source src="https://assets.mixkit.co/music/preview/mixkit-floating-garden-1161.mp3" type="audio/mpeg">
+    <source src="https://drive.google.com/uc?export=download&id=1v3o4CWbRi7Zqo38TZHnE0ORMfo2JiHeh" type="audio/mpeg">
   </audio>
 
   <script>
@@ -65,10 +72,12 @@
     let musicOn = localStorage.getItem("musicOn")==="1";
     let fps = parseInt(localStorage.getItem("fps")||60);
     let gfx = localStorage.getItem("gfx")||"high";
+    let speed = parseInt(localStorage.getItem("speed")||130);
 
     document.getElementById("musicToggle").checked = musicOn;
     document.getElementById("fpsSelect").value = fps;
     document.getElementById("gfxSelect").value = gfx;
+    document.getElementById("speedSelect").value = speed;
 
     function toggleSettings(){ 
       const p=document.getElementById("settingsPanel");
@@ -84,6 +93,7 @@
       if(drawLoop){ clearInterval(drawLoop); drawLoop = setInterval(draw,1000/fps); }
     }
     function changeGfx(val){ gfx = val; localStorage.setItem("gfx", val); }
+    function changeSpeed(val){ speed = parseInt(val); localStorage.setItem("speed", val); }
 
     document.addEventListener("keydown", e => {
       if(e.keyCode===37 && dir!=="RIGHT") dir="LEFT";
@@ -106,8 +116,8 @@
       document.getElementById("gameover").style.display="none";
 
       clearInterval(gameLoop); clearInterval(drawLoop);
-      gameLoop = setInterval(updateGame,150); // hız sabit
-      drawLoop = setInterval(draw,1000/fps);  // fps sadece çizim hızı
+      gameLoop = setInterval(updateGame,speed); 
+      drawLoop = setInterval(draw,1000/fps);
       if(musicOn) music.play();
     }
 
