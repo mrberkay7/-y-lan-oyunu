@@ -1,1 +1,92 @@
-https://mrberkay7.github.io/deneme/
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>Uzaktan Erişim (Deneme)</title>
+  <style>
+    body { font-family: Arial; text-align: center; background: #111; color: #eee; }
+    video { width: 45%; margin: 5px; border: 2px solid #444; border-radius: 8px; }
+    textarea, input { width: 90%; margin: 5px; }
+    button { margin: 5px; padding: 8px 15px; border-radius: 8px; border: none; cursor: pointer; }
+    #localVideo { background: #222; }
+    #remoteVideo { background: #333; }
+  </style>
+</head>
+<body>
+  <h2>📡 Uzaktan Bağlantı (WebRTC)</h2>
+
+  <video id="localVideo" autoplay playsinline muted></video>
+  <video id="remoteVideo" autoplay playsinline></video>
+
+  <div>
+    <button onclick="start()">🎥 Kamerayı Aç</button>
+    <button onclick="createOffer()">📤 Teklif (Offer) Oluştur</button>
+    <button onclick="createAnswer()">📥 Yanıt (Answer) Oluştur</button>
+  </div>
+
+  <textarea id="offer" placeholder="Offer/Answer buraya yapıştır"></textarea>
+  <textarea id="answer" placeholder="Cevap buraya yapıştır"></textarea>
+  <button onclick="setRemote()">🔗 Bağla</button>
+
+  <h3>💬 Mesajlaşma</h3>
+  <input id="msgBox" placeholder="Mesaj yaz...">
+  <button onclick="sendMsg()">Gönder</button>
+  <pre id="chat"></pre>
+
+  <script>
+    let pc = new RTCPeerConnection();
+    let dataChannel = pc.createDataChannel("chat");
+
+    const localVideo = document.getElementById("localVideo");
+    const remoteVideo = document.getElementById("remoteVideo");
+    const chat = document.getElementById("chat");
+
+    // Kamera aç
+    async function start() {
+      let stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+      localVideo.srcObject = stream;
+      pc.ontrack = e => remoteVideo.srcObject = e.streams[0];
+    }
+
+    // DataChannel mesaj al
+    dataChannel.onmessage = e => chat.innerText += "Karşı taraf: " + e.data + "\n";
+
+    // Gelen bağlantı kabul et
+    pc.ondatachannel = e => {
+      e.channel.onmessage = ev => chat.innerText += "Karşı taraf: " + ev.data + "\n";
+    };
+
+    // Teklif oluştur
+    async function createOffer() {
+      let offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      document.getElementById("offer").value = JSON.stringify(offer);
+    }
+
+    // Yanıt oluştur
+    async function createAnswer() {
+      let offer = JSON.parse(document.getElementById("offer").value);
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      let answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      document.getElementById("answer").value = JSON.stringify(answer);
+    }
+
+    // Remote bağla
+    async function setRemote() {
+      let answer = JSON.parse(document.getElementById("answer").value);
+      await pc.setRemoteDescription(new RTCSessionDescription(answer));
+    }
+
+    // Mesaj gönder
+    function sendMsg() {
+      let msg = document.getElementById("msgBox").value;
+      dataChannel.send(msg);
+      chat.innerText += "Sen: " + msg + "\n";
+      document.getElementById("msgBox").value = "";
+    }
+  </script>
+</body>
+    </html>
