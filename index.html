@@ -4,11 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Berkay000.1 - Yılan Oyunu</title>
-
-  <!-- Manifest ve ikon -->
-  <link rel="manifest" href="manifest.json">
-  <link rel="icon" href="icon.png" type="image/png">
-
   <style>
     body {
       margin: 0;
@@ -18,7 +13,7 @@
       text-align: center;
     }
     h1 { margin: 10px 0; font-size: 22px; font-weight: bold; }
-    canvas { background: #393E46; display: block; margin: 10px auto; border: 2px solid #00ADB5; }
+    canvas { display: none; margin: 10px auto; border: 2px solid #00ADB5; background: #111; }
     #score { font-size: 18px; margin-top: 5px; }
     button {
       padding: 12px 20px;
@@ -27,7 +22,7 @@
       border-radius: 8px;
       background: #00ADB5;
       color: white;
-      margin: 5px;
+      margin: 10px;
       cursor: pointer;
     }
     button:active { background: #008891; }
@@ -35,49 +30,43 @@
 </head>
 <body>
   <h1>🐍 Berkay000.1 Yılan Oyunu 🐍</h1>
-  <p id="score">Skor: 0 | En Yüksek: 0</p>
+  <p id="score">Skor: 0 | En Yüksek: 0 | Level: 1</p>
   <canvas id="game" width="400" height="400"></canvas>
-
-  <!-- Kontrol butonları -->
-  <div>
-    <button onclick="changeDirection('UP')">⬆️</button><br>
-    <button onclick="changeDirection('LEFT')">⬅️</button>
-    <button onclick="changeDirection('DOWN')">⬇️</button>
-    <button onclick="changeDirection('RIGHT')">➡️</button>
-  </div>
-
-  <!-- YouTube müziğini başlatan buton -->
-  <button id="play-music">🎵 Müziği Aç</button>
-
-  <!-- Gömülü YouTube oynatıcı (görünmez) -->
-  <iframe id="ytplayer" width="0" height="0"
-    src=""
-    frameborder="0"
-    allow="autoplay"
-  ></iframe>
+  
+  <!-- Başlatma ve tekrar oynama butonları -->
+  <button id="startBtn">▶️ Oyunu Başlat</button>
+  <button id="restartBtn" style="display:none;">🔄 Tekrar Oyna</button>
 
   <script>
-    // YouTube müziği buton
-    document.getElementById("play-music").addEventListener("click", function() {
-      const iframe = document.getElementById("ytplayer");
-      const videoId = "8JNkVkazsDY";
-      iframe.src = "https://www.youtube.com/embed/" + videoId + "?autoplay=1&loop=1&playlist=" + videoId;
-      this.style.display = "none";
-    });
-
-    // Yılan oyunu fonksiyonları
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
     const box = 20;
-    let snake = [{x: 9 * box, y: 10 * box}];
-    let direction = null;
-    let food = { x: Math.floor(Math.random() * 19 + 1) * box, y: Math.floor(Math.random() * 19 + 1) * box };
-    let score = 0;
-    let highScore = localStorage.getItem("highScore") || 0;
-    let colors = ["lime", "yellow", "red", "cyan", "orange", "pink", "white"];
+    let snake, direction, food, score, highScore, level, speed, game;
+    const maxLevel = 50;
 
-    document.getElementById("score").innerText = "Skor: 0 | En Yüksek: " + highScore;
-    document.addEventListener("keydown", keyDown);
+    // Elma resmi
+    const appleImg = new Image();
+    appleImg.src = "https://i.ibb.co/7JfqXxB/apple.png";
+
+    // Arka plan renkleri (her level değişsin)
+    const bgColors = [
+      "#222831","#393E46","#1a1a2e","#16213e","#0f3460",
+      "#533483","#3d2c8d","#2c394b","#003638","#5c2a9d"
+    ];
+
+    function initGame() {
+      snake = [{x: 9 * box, y: 10 * box}];
+      direction = null;
+      food = {
+        x: Math.floor(Math.random() * 19 + 1) * box,
+        y: Math.floor(Math.random() * 19 + 1) * box
+      };
+      score = 0;
+      level = 1;
+      speed = 200;
+      highScore = localStorage.getItem("highScore") || 0;
+      document.getElementById("score").innerText = "Skor: 0 | En Yüksek: " + highScore + " | Level: 1";
+    }
 
     function keyDown(event) {
       if(event.keyCode === 37 && direction !== "RIGHT") direction = "LEFT";
@@ -85,27 +74,24 @@
       else if(event.keyCode === 39 && direction !== "LEFT") direction = "RIGHT";
       else if(event.keyCode === 40 && direction !== "UP") direction = "DOWN";
     }
-
-    function changeDirection(dir) {
-      if(dir === "LEFT" && direction !== "RIGHT") direction = "LEFT";
-      if(dir === "UP" && direction !== "DOWN") direction = "UP";
-      if(dir === "RIGHT" && direction !== "LEFT") direction = "RIGHT";
-      if(dir === "DOWN" && direction !== "UP") direction = "DOWN";
-    }
+    document.addEventListener("keydown", keyDown);
 
     function draw() {
-      ctx.fillStyle = "#393E46";
+      ctx.fillStyle = bgColors[level % bgColors.length];
       ctx.fillRect(0, 0, 400, 400);
 
+      // Yılan çizimi
       for(let i = 0; i < snake.length; i++) {
-        ctx.fillStyle = colors[Math.floor(i/2) % colors.length];
-        ctx.fillRect(snake[i].x, snake[i].y, box, box);
+        ctx.fillStyle = (i === 0) ? "lime" : "#7fff7f";
+        ctx.beginPath();
+        ctx.arc(snake[i].x + box/2, snake[i].y + box/2, box/2 - 2, 0, Math.PI*2);
+        ctx.fill();
         ctx.strokeStyle = "#000";
-        ctx.strokeRect(snake[i].x, snake[i].y, box, box);
+        ctx.stroke();
       }
 
-      ctx.fillStyle = "red";
-      ctx.fillRect(food.x, food.y, box, box);
+      // Yemek (elma resmi)
+      ctx.drawImage(appleImg, food.x, food.y, box, box);
 
       let snakeX = snake[0].x;
       let snakeY = snake[0].y;
@@ -117,6 +103,12 @@
 
       if(snakeX === food.x && snakeY === food.y) {
         score++;
+        if(score % 5 === 0 && level < maxLevel) {
+          level++;
+          speed = Math.max(60, speed - 5);
+          clearInterval(game);
+          game = setInterval(draw, speed);
+        }
         if(score > highScore) {
           highScore = score;
           localStorage.setItem("highScore", highScore);
@@ -133,18 +125,32 @@
 
       if(snakeX < 0 || snakeY < 0 || snakeX >= 20 * box || snakeY >= 20 * box || collision(newHead, snake)) {
         clearInterval(game);
-        alert("Oyun Bitti! Skor: " + score);
+        alert("Oyun Bitti! Skor: " + score + " | Level: " + level);
+        document.getElementById("restartBtn").style.display = "inline-block";
       }
 
       snake.unshift(newHead);
-      document.getElementById("score").innerText = "Skor: " + score + " | En Yüksek: " + highScore;
+      document.getElementById("score").innerText =
+        "Skor: " + score + " | En Yüksek: " + highScore + " | Level: " + level;
     }
 
     function collision(head, array) {
       return array.some(segment => segment.x === head.x && segment.y === head.y);
     }
 
-    let game = setInterval(draw, 120);
+    document.getElementById("startBtn").addEventListener("click", function() {
+      this.style.display = "none";
+      document.getElementById("restartBtn").style.display = "none";
+      canvas.style.display = "block";
+      initGame();
+      game = setInterval(draw, speed);
+    });
+
+    document.getElementById("restartBtn").addEventListener("click", function() {
+      this.style.display = "none";
+      initGame();
+      game = setInterval(draw, speed);
+    });
   </script>
 </body>
 </html>
