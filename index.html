@@ -1,79 +1,320 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8">
-  <title>🐍 Berkay Yılan Oyunu (Online Skor)</title>
-  <style>
-    body {
-      background: black;
-      color: #00ff00;
-      font-family: monospace;
-      text-align: center;
-    }
-    #scoreboard {
-      border: 1px solid #00ff00;
-      margin: 10px auto;
-      width: 90%;
-      padding: 10px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    td, th {
-      border: 1px solid #00ff00;
-      padding: 6px;
-    }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Mini Ateş – Offline</title>
+<style>
+  :root { --bg:#0d0f12; --fg:#e8ffe8; --acc:#19ff62; --edge:#18d34f; --enemy:#ff5a5a; --bullet:#ffd05a; }
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,Arial}
+  header{display:flex;gap:8px;align-items:center;justify-content:center;padding:10px 12px;border-bottom:1px solid #1e232a}
+  h1{margin:0;font-size:18px}
+  #hud{display:flex;gap:14px;margin-left:auto}
+  .pill{background:#0e171f;border:1px solid #1e2b38;padding:4px 10px;border-radius:999px}
+  #root{max-width:980px;margin:0 auto;padding:10px}
+  #canvas{display:block;width:100%;max-width:960px;aspect-ratio:4/3;background:#0a0c0f;border:2px solid var(--edge);border-radius:12px}
+  #overlay, #menu {
+    position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+  }
+  #menu{display:flex}
+  .panel{
+    background:rgba(0,0,0,.72); border:1px solid #22303a; border-radius:14px; padding:18px; text-align:center; backdrop-filter: blur(2px);
+  }
+  button,select{background:#11161c;color:var(--fg);border:1px solid #26303a;border-radius:12px;padding:9px 14px;cursor:pointer}
+  button:hover{border-color:#3a4957}
+  #bar{display:flex;gap:10px;align-items:center;justify-content:space-between;margin:8px 0}
+  #mobile{display:none;gap:10px;margin-top:10px;flex-wrap:wrap;justify-content:center}
+  #mobile button{width:68px;height:68px;border-radius:16px;font-size:20px}
+  .wide{width:120px}
+  @media (max-width:760px){ #mobile{display:flex} }
+  .stat{min-width:90px;text-align:center}
+</style>
 </head>
 <body>
-  <h1>🐍 Berkay Yılan Oyunu (Online Skor)</h1>
+<header>
+  <h1>🔫 Mini Ateş – Offline</h1>
+  <div id="hud" style="margin-left:0">
+    <span class="pill stat">Skor: <b id="score">0</b></span>
+    <span class="pill stat">Can: <b id="hp">100</b></span>
+    <span class="pill stat">Dalga: <b id="wave">1</b></span>
+    <span class="pill stat">FPS: <b id="fps">—</b></span>
+  </div>
+</header>
 
-  <div id="scoreboard">
-    🌍 Online Skor Tablosu
-    <p id="loading">Yükleniyor...</p>
-    <table id="scores" style="display:none;">
-      <thead>
-        <tr><th>Oyuncu</th><th>Skor</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+<div id="root" style="position:relative">
+  <canvas id="canvas" width="960" height="720"></canvas>
+
+  <!-- Başlangıç menüsü -->
+  <div id="menu">
+    <div class="panel">
+      <h2 style="margin:6px 0 12px">Mini Ateş</h2>
+      <div id="bar">
+        <label>Hız:
+          <select id="speed">
+            <option value="slow">Yavaş</option>
+            <option value="normal" selected>Normal</option>
+            <option value="fast">Hızlı</option>
+          </select>
+        </label>
+        <label>Grafik:
+          <select id="gfx">
+            <option value="low">Düşük</option>
+            <option value="high" selected>Yüksek</option>
+          </select>
+        </label>
+      </div>
+      <p style="opacity:.8;margin:6px 0 12px">WASD / Ok tuşları: hareket • <b>Space</b>: ateş • <b>R</b>: yeniden başlat</p>
+      <button id="start" class="wide">▶ Başla</button>
+    </div>
   </div>
 
-  <!-- Firebase -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  <!-- Oyun bitti -->
+  <div id="overlay">
+    <div class="panel">
+      <h2 style="margin:6px 0 10px">💀 Oyun Bitti</h2>
+      <p style="margin:0 0 12px">Skorun: <b id="finalScore">0</b> • Dalga: <b id="finalWave">1</b></p>
+      <button id="retry" class="wide">↻ Tekrar Oyna</button>
+    </div>
+  </div>
+</div>
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyDCrdNoQiBpthpUH7m-EbXCgWDPErmcEU8",
-      authDomain: "coffee-spark-sample-app-f01da.firebaseapp.com",
-      projectId: "coffee-spark-sample-app-f01da",
-      storageBucket: "coffee-spark-sample-app-f01da.appspot.com",
-      messagingSenderId: "708637653571",
-      appId: "1:708637653571:web:a0d3c39606ec28480df2f6"
-    };
+<!-- Mobil kontroller -->
+<div id="mobile">
+  <button id="up">⬆️</button>
+  <div style="display:flex;gap:10px">
+    <button id="left">⬅️</button>
+    <button id="right">➡️</button>
+  </div>
+  <button id="down">⬇️</button>
+  <button id="shoot" class="wide">🎯 Ateş</button>
+</div>
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+<script>
+/* ====== Ayarlar ve durum ====== */
+const cvs = document.getElementById('canvas'), ctx = cvs.getContext('2d');
+const W=cvs.width, H=cvs.height;
+const ui = {
+  score: document.getElementById('score'),
+  hp: document.getElementById('hp'),
+  wave: document.getElementById('wave'),
+  fps: document.getElementById('fps'),
+  menu: document.getElementById('menu'),
+  overlay: document.getElementById('overlay'),
+  finalScore: document.getElementById('finalScore'),
+  finalWave: document.getElementById('finalWave'),
+  start: document.getElementById('start'),
+  retry: document.getElementById('retry'),
+  speedSel: document.getElementById('speed'),
+  gfxSel: document.getElementById('gfx'),
+};
+let GFX = localStorage.getItem('gfx') || 'high';
+let SPEED = localStorage.getItem('speed') || 'normal';
+ui.gfxSel.value = GFX; ui.speedSel.value = SPEED;
+ui.gfxSel.onchange = e=>{ GFX=e.target.value; localStorage.setItem('gfx',GFX); }
+ui.speedSel.onchange = e=>{ SPEED=e.target.value; localStorage.setItem('speed',SPEED); }
 
-    async function loadScores() {
-      const querySnapshot = await getDocs(collection(db, "scores")); // Firestore’da “scores” koleksiyonu lazım
-      const tbody = document.querySelector("#scores tbody");
-      tbody.innerHTML = "";
+const inputs = {up:false,down:false,left:false,right:false,shoot:false};
+addEventListener('keydown',e=>{
+  if(['w','W','ArrowUp'].includes(e.key)) inputs.up=true;
+  if(['s','S','ArrowDown'].includes(e.key)) inputs.down=true;
+  if(['a','A','ArrowLeft'].includes(e.key)) inputs.left=true;
+  if(['d','D','ArrowRight'].includes(e.key)) inputs.right=true;
+  if(e.code==='Space'){ inputs.shoot=true; e.preventDefault(); }
+  if(e.key==='r'||e.key==='R') startGame();
+});
+addEventListener('keyup',e=>{
+  if(['w','W','ArrowUp'].includes(e.key)) inputs.up=false;
+  if(['s','S','ArrowDown'].includes(e.key)) inputs.down=false;
+  if(['a','A','ArrowLeft'].includes(e.key)) inputs.left=false;
+  if(['d','D','ArrowRight'].includes(e.key)) inputs.right=false;
+  if(e.code==='Space') inputs.shoot=false;
+});
+// mobil
+const mb = id=>document.getElementById(id);
+[['up','up'],['down','down'],['left','left'],['right','right']].forEach(([id,k])=>{
+  mb(id).addEventListener('touchstart',e=>{e.preventDefault(); inputs[k]=true;},{passive:false});
+  mb(id).addEventListener('touchend',e=>{e.preventDefault(); inputs[k]=false;},{passive:false});
+});
+mb('shoot').addEventListener('touchstart',e=>{e.preventDefault(); pressShoot();},{passive:false});
+mb('shoot').addEventListener('click',pressShoot);
+function pressShoot(){ shoot(); }
 
-      querySnapshot.forEach(doc => {
-        const data = doc.data();
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${data.name}</td><td>${data.score}</td>`;
-        tbody.appendChild(tr);
-      });
+/* ====== Oyun nesneleri ====== */
+let player, bullets, enemies, score, wave, hp, alive, fireCD, lastFire;
+let lastTime, acc=0, fpsSmth=0;
 
-      document.getElementById("loading").style.display = "none";
-      document.getElementById("scores").style.display = "table";
+function resetState(){
+  score=0; wave=1; hp=100; alive=true;
+  player={x:W*0.5,y:H*0.5,r:14,angle:0};
+  bullets=[]; enemies=[];
+  fireCD= (SPEED==='fast'?120 : SPEED==='normal'?170 : 220); // ms
+  lastFire=0;
+  spawnWave();
+}
+
+function spawnWave(){
+  const N = 4 + wave*2; // her dalga artan düşman
+  for(let i=0;i<N;i++){
+    const side = Math.floor(Math.random()*4);
+    let x,y;
+    if(side===0){ x=-20; y=Math.random()*H; }
+    if(side===1){ x=W+20; y=Math.random()*H; }
+    if(side===2){ x=Math.random()*W; y=-20; }
+    if(side===3){ x=Math.random()*W; y=H+20; }
+    enemies.push({
+      x,y, r: 12,
+      spd: (SPEED==='fast'? 95 : SPEED==='normal'? 80 : 65) + Math.random()*20,
+      hp: 25 + Math.random()*25
+    });
+  }
+}
+function clamp(v,min,max){ return Math.max(min,Math.min(max,v)); }
+function len(x,y){ return Math.hypot(x,y)||1; }
+
+/* ====== Oyun başlat/bitir ====== */
+ui.start.onclick = startGame;
+ui.retry.onclick = startGame;
+function startGame(){
+  ui.menu.style.display='none';
+  ui.overlay.style.display='none';
+  resetState();
+  lastTime = performance.now();
+  requestAnimationFrame(loop);
+}
+
+/* ====== Döngü (sabit fizik, akıcı çizim) ====== */
+function loop(t){
+  const dt = Math.min(0.05,(t-lastTime)/1000); lastTime=t;
+  acc += dt;
+  // 60 Hz fizik (stabil & akıcı)
+  while(acc >= 1/60){ update(1/60); acc -= 1/60; }
+  draw();
+  // FPS göstergesi
+  const alpha=0.08; fpsSmth = fpsSmth? (fpsSmth*(1-alpha)+ (1/dt)*alpha) : (1/dt);
+  ui.fps.textContent = Math.round(fpsSmth);
+  if(alive) requestAnimationFrame(loop);
+}
+
+/* ====== Güncelle ====== */
+function update(dt){
+  // oyuncu hızı
+  const base = (SPEED==='fast'? 210 : SPEED==='normal'? 180 : 150);
+  const vx = (inputs.right - inputs.left) * base;
+  const vy = (inputs.down  - inputs.up)   * base;
+  player.x = clamp(player.x + vx*dt, player.r, W-player.r);
+  player.y = clamp(player.y + vy*dt, player.r, H-player.r);
+  // son yön
+  if(vx||vy) player.angle = Math.atan2(vy,vx);
+
+  // ateş
+  if(inputs.shoot) shoot();
+
+  // mermi hareketi
+  const bspd = 420;
+  bullets.forEach(b => { b.x += Math.cos(b.a)*bspd*dt; b.y += Math.sin(b.a)*bspd*dt; b.life -= dt; });
+  bullets = bullets.filter(b => b.life>0 && b.x>-10 && b.x<W+10 && b.y>-10 && b.y<H+10);
+
+  // düşman yapay zekâ: oyuncuya doğru hareket
+  enemies.forEach(e=>{
+    const dx = player.x - e.x, dy = player.y - e.y, l=len(dx,dy);
+    e.x += dx/l * e.spd * dt;
+    e.y += dy/l * e.spd * dt;
+  });
+
+  // çarpışmalar: mermi -> düşman
+  bullets.forEach(b=>{
+    enemies.forEach(e=>{
+      const d = Math.hypot(b.x-e.x, b.y-e.y);
+      if(d < e.r+3 && e.hp>0 && b.life>0){
+        e.hp -= 25; b.life=0;
+        if(e.hp<=0){ score += 5; }
+      }
+    });
+  });
+  enemies = enemies.filter(e=>e.hp>0);
+
+  // düşman -> oyuncu
+  enemies.forEach(e=>{
+    if(Math.hypot(e.x-player.x,e.y-player.y) < e.r+player.r){
+      hp -= 30*dt; if(hp<=0) gameOver();
     }
+  });
 
-    loadScores();
-  </script>
+  // dalga bitti mi?
+  if(enemies.length===0){
+    wave++; spawnWave();
+  }
+
+  // UI
+  ui.score.textContent = score|0;
+  ui.hp.textContent = Math.max(0, Math.round(hp));
+  ui.wave.textContent = wave;
+}
+
+function shoot(){
+  const now = performance.now();
+  if(now - lastFire < fireCD) return;
+  lastFire = now;
+  const a = player.angle || 0;
+  bullets.push({x:player.x + Math.cos(a)*(player.r+4), y:player.y + Math.sin(a)*(player.r+4), a, life:1.2});
+}
+
+/* ====== Çiz ====== */
+function draw(){
+  // arka plan grid
+  ctx.fillStyle = '#0b0f14'; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle = '#0f2619'; ctx.lineWidth = 1;
+  for(let x=0;x<W;x+=48){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for(let y=0;y<H;y+=48){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+  // oyuncu trail (yüksek grafik)
+  if(GFX==='high'){
+    ctx.globalAlpha = .08;
+    ctx.fillStyle = '#19ff62';
+    ctx.beginPath(); ctx.arc(player.x,player.y, player.r+12, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // oyuncu
+  ctx.fillStyle = '#19ff62';
+  circle(player.x, player.y, player.r);
+  // namlu
+  ctx.strokeStyle = '#19ff62'; ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(player.x, player.y);
+  ctx.lineTo(player.x + Math.cos(player.angle)*(player.r+8), player.y + Math.sin(player.angle)*(player.r+8));
+  ctx.stroke();
+
+  // mermiler
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bullet');
+  bullets.forEach(b=>{ circle(b.x,b.y,3); });
+
+  // düşmanlar
+  enemies.forEach(e=>{
+    ctx.fillStyle = 'rgba(255,90,90,.95)';
+    circle(e.x,e.y,e.r);
+    if(GFX==='high'){ // hafif parıltı
+      ctx.globalAlpha=.15; ctx.beginPath(); ctx.arc(e.x,e.y,e.r+10,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+    }
+  });
+
+  // HP bar
+  const bw = 160, bh=10, x=W- bw - 18, y=18;
+  ctx.fillStyle = '#18301f'; ctx.fillRect(x,y,bw,bh);
+  ctx.fillStyle = '#2bff79'; ctx.fillRect(x,y, bw*(Math.max(0,hp)/100), bh);
+}
+
+function circle(x,y,r){ ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); }
+
+/* ====== Bitiş ====== */
+function gameOver(){
+  if(!alive) return;
+  alive=false;
+  ui.finalScore.textContent = score|0;
+  ui.finalWave.textContent = wave;
+  setTimeout(()=>{ ui.overlay.style.display='flex'; }, 60);
+}
+</script>
 </body>
 </html>
