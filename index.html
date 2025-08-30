@@ -7,7 +7,7 @@
 
   <!-- Manifest ve ikon -->
   <link rel="manifest" href="manifest.json">
-  <link rel="icon" href="IMG-20250521-WA0013.jpg" type="image/jpg">
+  <link rel="icon" href="icon.png" type="image/png">
 
   <style>
     body {
@@ -17,21 +17,9 @@
       font-family: Arial, sans-serif;
       text-align: center;
     }
-    h1 {
-      margin: 10px 0;
-      font-size: 22px;
-      font-weight: bold;
-    }
-    canvas {
-      background: #393E46;
-      display: block;
-      margin: 10px auto;
-      border: 2px solid #00ADB5;
-    }
-    #score {
-      font-size: 18px;
-      margin-top: 5px;
-    }
+    h1 { margin: 10px 0; font-size: 22px; font-weight: bold; }
+    canvas { background: #393E46; display: block; margin: 10px auto; border: 2px solid #00ADB5; }
+    #score { font-size: 18px; margin-top: 5px; }
     button {
       padding: 12px 20px;
       font-size: 18px;
@@ -42,9 +30,7 @@
       margin: 5px;
       cursor: pointer;
     }
-    button:active {
-      background: #008891;
-    }
+    button:active { background: #008891; }
   </style>
 </head>
 <body>
@@ -60,23 +46,37 @@
     <button onclick="changeDirection('RIGHT')">➡️</button>
   </div>
 
+  <!-- YouTube müziğini başlatan buton -->
+  <button id="play-music">🎵 Müziği Aç</button>
+
+  <!-- Gömülü YouTube oynatıcı (görünmez) -->
+  <iframe id="ytplayer" width="0" height="0"
+    src=""
+    frameborder="0"
+    allow="autoplay"
+  ></iframe>
+
   <script>
+    // YouTube müziği buton
+    document.getElementById("play-music").addEventListener("click", function() {
+      const iframe = document.getElementById("ytplayer");
+      const videoId = "8JNkVkazsDY";
+      iframe.src = "https://www.youtube.com/embed/" + videoId + "?autoplay=1&loop=1&playlist=" + videoId;
+      this.style.display = "none";
+    });
+
+    // Yılan oyunu fonksiyonları
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
     const box = 20;
-
     let snake = [{x: 9 * box, y: 10 * box}];
     let direction = null;
-    let food = {
-      x: Math.floor(Math.random() * 19 + 1) * box,
-      y: Math.floor(Math.random() * 19 + 1) * box
-    };
+    let food = { x: Math.floor(Math.random() * 19 + 1) * box, y: Math.floor(Math.random() * 19 + 1) * box };
     let score = 0;
     let highScore = localStorage.getItem("highScore") || 0;
     let colors = ["lime", "yellow", "red", "cyan", "orange", "pink", "white"];
 
     document.getElementById("score").innerText = "Skor: 0 | En Yüksek: " + highScore;
-
     document.addEventListener("keydown", keyDown);
 
     function keyDown(event) {
@@ -131,7 +131,7 @@
 
       let newHead = {x: snakeX, y: snakeY};
 
-      if(snakeX < 0 || snakeY < 0 || snakeX >= 20*box || snakeY >= 20*box || collision(newHead, snake)) {
+      if(snakeX < 0 || snakeY < 0 || snakeX >= 20 * box || snakeY >= 20 * box || collision(newHead, snake)) {
         clearInterval(game);
         alert("Oyun Bitti! Skor: " + score);
       }
@@ -141,12 +141,7 @@
     }
 
     function collision(head, array) {
-      for(let i = 0; i < array.length; i++) {
-        if(head.x === array[i].x && head.y === array[i].y) {
-          return true;
-        }
-      }
-      return false;
+      return array.some(segment => segment.x === head.x && segment.y === head.y);
     }
 
     let game = setInterval(draw, 120);
