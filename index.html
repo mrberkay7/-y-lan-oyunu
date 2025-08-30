@@ -3,9 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Berkay000.1 - Yılan Oyunu</title>
-  <link rel="manifest" href="manifest.json">
-  <link rel="icon" href="icon.png" type="image/png">
+  <title>Berkay000.2 - Yılan Oyunu</title>
   <style>
     body {
       margin: 0;
@@ -13,11 +11,12 @@
       color: white;
       font-family: Arial, sans-serif;
       text-align: center;
+      overflow: hidden;
     }
     h1 { margin: 10px 0; font-size: 22px; font-weight: bold; }
-    canvas { background: #393E46; display: block; margin: 10px auto; border: 2px solid #00ADB5; }
+    #game { background: #393E46; display: block; margin: 10px auto; border: 2px solid #00ADB5; }
     #score { font-size: 18px; margin-top: 5px; }
-    button {
+    .btn {
       padding: 12px 20px;
       font-size: 18px;
       border: none;
@@ -27,77 +26,124 @@
       margin: 5px;
       cursor: pointer;
     }
-    button:active { background: #008891; }
-    #controls { margin-top: 10px; }
-    #controls button { width: 60px; height: 60px; font-size: 20px; }
+    .btn:active { background: #008891; }
+    #menu, #gameover {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.8);
+      padding: 30px;
+      border-radius: 12px;
+      display: none;
+    }
+    #settings {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #393E46;
+      padding: 10px;
+      border-radius: 8px;
+    }
+    #settings-panel {
+      display: none;
+      position: absolute;
+      top: 60px; right: 10px;
+      background: rgba(0,0,0,0.9);
+      padding: 20px;
+      border-radius: 12px;
+      text-align: left;
+    }
+    label { display: block; margin: 8px 0; }
   </style>
 </head>
 <body>
-  <h1>🐍 Berkay000.1 Yılan Oyunu 🐍</h1>
-  <p id="score">Skor: 0 | En Yüksek: 0 | Bölüm: 1</p>
+  <h1>🐍 Berkay000.2 Yılan Oyunu 🐍</h1>
+  <p id="score">Skor: 0 | En Yüksek: 0</p>
   <canvas id="game" width="400" height="400"></canvas>
 
-  <!-- Başlat & Tekrarla butonları -->
-  <button id="startBtn">▶️ Oyunu Başlat</button>
-  <button id="restartBtn" style="display:none;">🔄 Tekrar Oyna</button>
+  <!-- Menü -->
+  <div id="menu">
+    <h2>🐍 Yılan Oyunu</h2>
+    <button class="btn" onclick="startGame()">▶️ Oyunu Başlat</button>
+  </div>
 
-  <!-- Kontrol butonları -->
-  <div id="controls">
-    <button onclick="changeDirection('UP')">⬆️</button><br>
-    <button onclick="changeDirection('LEFT')">⬅️</button>
-    <button onclick="changeDirection('DOWN')">⬇️</button>
-    <button onclick="changeDirection('RIGHT')">➡️</button>
+  <!-- Oyun bitti -->
+  <div id="gameover">
+    <h2>☠️ Kaybettin!</h2>
+    <button class="btn" onclick="startGame()">🔄 Tekrar Başlat</button>
+  </div>
+
+  <!-- Ayarlar -->
+  <div id="settings">
+    <button class="btn" onclick="toggleSettings()">⚙️ Ayarlar</button>
+  </div>
+  <div id="settings-panel">
+    <label>
+      <input type="checkbox" id="music-toggle"> 🎵 Müzik Açık
+    </label>
+    <label>
+      Grafik:
+      <select id="graphics">
+        <option value="normal">Normal</option>
+        <option value="high">Yüksek</option>
+      </select>
+    </label>
+    <label>
+      FPS:
+      <select id="fps">
+        <option value="30">30</option>
+        <option value="60">60</option>
+        <option value="90">90</option>
+      </select>
+    </label>
   </div>
 
   <script>
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
     const box = 20;
-    let snake, direction, food, score, highScore, level, speed, game;
+    let snake, direction, food, score, highScore, gameRunning, speed, fpsLimit;
+    highScore = localStorage.getItem("highScore") || 0;
+    document.getElementById("score").innerText = "Skor: 0 | En Yüksek: " + highScore;
 
-    const levelColors = ["#393E46","#2E294E","#1E5128","#3D0000","#003638","#4C0070","#222831","#1B262C","#420516","#062925"];
-
-    function initGame() {
+    function startGame() {
       snake = [{x: 9 * box, y: 10 * box}];
       direction = null;
+      food = { x: Math.floor(Math.random() * 19 + 1) * box, y: Math.floor(Math.random() * 19 + 1) * box };
       score = 0;
-      level = 1;
       speed = 120;
-      food = { x: Math.floor(Math.random()*19+1)*box, y: Math.floor(Math.random()*19+1)*box };
-      highScore = localStorage.getItem("highScore") || 0;
-      document.getElementById("score").innerText = "Skor: 0 | En Yüksek: " + highScore + " | Bölüm: " + level;
+      gameRunning = true;
+      document.getElementById("menu").style.display = "none";
+      document.getElementById("gameover").style.display = "none";
+      requestAnimationFrame(loop);
     }
 
-    function keyDown(event) {
-      if(event.keyCode === 37 && direction !== "RIGHT") direction = "LEFT";
-      else if(event.keyCode === 38 && direction !== "DOWN") direction = "UP";
-      else if(event.keyCode === 39 && direction !== "LEFT") direction = "RIGHT";
-      else if(event.keyCode === 40 && direction !== "UP") direction = "DOWN";
+    function loop(timestamp) {
+      if (!gameRunning) return;
+      if (!lastRender) lastRender = timestamp;
+      const progress = timestamp - lastRender;
+      if (progress > speed) {
+        draw();
+        lastRender = timestamp;
+      }
+      requestAnimationFrame(loop);
     }
-    document.addEventListener("keydown", keyDown);
-
-    function changeDirection(dir) {
-      if(dir === "LEFT" && direction !== "RIGHT") direction = "LEFT";
-      if(dir === "UP" && direction !== "DOWN") direction = "UP";
-      if(dir === "RIGHT" && direction !== "LEFT") direction = "RIGHT";
-      if(dir === "DOWN" && direction !== "UP") direction = "DOWN";
-    }
+    let lastRender;
 
     function draw() {
-      ctx.fillStyle = levelColors[(level-1)%levelColors.length];
+      ctx.fillStyle = "#393E46";
       ctx.fillRect(0, 0, 400, 400);
 
       for(let i = 0; i < snake.length; i++) {
-        ctx.fillStyle = i===0 ? "lime" : "green";
+        ctx.fillStyle = (i==0) ? "lime" : "green";
         ctx.beginPath();
-        ctx.arc(snake[i].x+box/2, snake[i].y+box/2, box/2, 0, Math.PI*2);
+        ctx.arc(snake[i].x+box/2, snake[i].y+box/2, box/2, 0, 2*Math.PI);
         ctx.fill();
       }
 
-      // elma
       ctx.fillStyle = "red";
       ctx.beginPath();
-      ctx.arc(food.x+box/2, food.y+box/2, box/2, 0, Math.PI*2);
+      ctx.arc(food.x+box/2, food.y+box/2, box/2, 0, 2*Math.PI);
       ctx.fill();
 
       let snakeX = snake[0].x;
@@ -107,55 +153,47 @@
       if(direction === "RIGHT") snakeX += box;
       if(direction === "DOWN") snakeY += box;
 
-      // yedi mi?
       if(snakeX === food.x && snakeY === food.y) {
         score++;
-        if(score % 5 === 0 && level < 50) level++; // her 5 elmada level
         if(score > highScore) {
           highScore = score;
           localStorage.setItem("highScore", highScore);
         }
-        food = { x: Math.floor(Math.random()*19+1)*box, y: Math.floor(Math.random()*19+1)*box };
-        if(speed > 60) {
-          clearInterval(game);
-          speed -= 5;
-          game = setInterval(draw, speed);
-        }
+        food = { x: Math.floor(Math.random() * 19 + 1) * box, y: Math.floor(Math.random() * 19 + 1) * box };
+        if(speed > 40) speed -= 2;
       } else {
         snake.pop();
       }
 
       let newHead = {x: snakeX, y: snakeY};
       if(snakeX < 0 || snakeY < 0 || snakeX >= 20*box || snakeY >= 20*box || collision(newHead, snake)) {
-        clearInterval(game);
-        document.getElementById("restartBtn").style.display = "inline-block";
-        alert("Oyun Bitti! Skor: " + score);
+        gameOver();
         return;
       }
-
       snake.unshift(newHead);
-      document.getElementById("score").innerText = "Skor: " + score + " | En Yüksek: " + highScore + " | Bölüm: " + level;
+      document.getElementById("score").innerText = "Skor: " + score + " | En Yüksek: " + highScore;
     }
 
     function collision(head, array) {
       return array.some(segment => segment.x === head.x && segment.y === head.y);
     }
 
-    document.getElementById("startBtn").onclick = () => {
-      initGame();
-      game = setInterval(draw, speed);
-      document.getElementById("startBtn").style.display = "none";
-    };
+    function gameOver() {
+      gameRunning = false;
+      document.getElementById("gameover").style.display = "block";
+    }
 
-    document.getElementById("restartBtn").onclick = () => {
-      initGame();
-      game = setInterval(draw, speed);
-      document.getElementById("restartBtn").style.display = "none";
-    };
+    document.addEventListener("keydown", function(event) {
+      if(event.keyCode === 37 && direction !== "RIGHT") direction = "LEFT";
+      else if(event.keyCode === 38 && direction !== "DOWN") direction = "UP";
+      else if(event.keyCode === 39 && direction !== "LEFT") direction = "RIGHT";
+      else if(event.keyCode === 40 && direction !== "UP") direction = "DOWN";
+    });
 
-    // offline için service worker
-    if("serviceWorker" in navigator){
-      navigator.serviceWorker.register("sw.js");
+    // Ayarlar
+    function toggleSettings() {
+      const panel = document.getElementById("settings-panel");
+      panel.style.display = (panel.style.display === "block") ? "none" : "block";
     }
   </script>
 </body>
