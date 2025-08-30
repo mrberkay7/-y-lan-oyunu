@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Berkay Snake – Final</title>
+  <style>
+    body { margin:0; background:#222; color:#fff; font-family:Arial, sans-serif; text-align:center; }
+    h1 { margin: 10px 0; }
+    canvas { background:#111; border:2px solid #0f0; display:block; margin:10px auto; }
+    button { padding:10px 20px; margin:5px; font-size:16px; border:none; border-radius:6px; background:#0f0; color:#111; cursor:pointer; }
+    button:active { background:#0c0; }
+    #menu, #gameover { margin-top:20px; }
+    #controls button { width:50px; height:50px; font-size:18px; margin:3px; }
+    #settingsBtn { position:fixed; top:10px; right:10px; padding:6px 12px; background:#00e5ff; color:#111; }
+    #settingsPanel { display:none; position:fixed; top:50px; right:10px; background:rgba(0,0,0,0.8); padding:12px; border-radius:6px; }
+    #settingsPanel label { display:block; margin:8px 0; color:#fff; }
+  </style>
+</head>
+<body>
+  <h1>🐍 Berkay Snake Final</h1>
+  <p>Skor: <span id="score">0</span> | En Yüksek: <span id="high">0</span></p>
+  <canvas id="game" width="400" height="400"></canvas>
+
+  <div id="menu">
+    <button onclick="startGame()">▶ Başla</button>
+  </div>
+  <div id="gameover" style="display:none;">
+    <h2>Kaybettin!</h2>
+    <button onclick="startGame()">Tekrar Oyna</button>
+  </div>
+
+  <div id="controls">
+    <button onclick="setDir('UP')">⬆</button><br>
+    <button onclick="setDir('LEFT')">⬅</button>
+    <button onclick="setDir('DOWN')">⬇</button>
+    <button onclick="setDir('RIGHT')">➡</button>
+  </div>
+
+  <button id="settingsBtn" onclick="toggleSettings()">⚙️</button>
+  <div id="settingsPanel">
+    <label><input type="checkbox" id="musicToggle" onchange="toggleMusic()"> Müzik</label>
+    <label>FPS:
+      <select id="fpsSelect" onchange="changeFPS(this.value)">
+        <option>30</option><option selected>60</option><option>90</option>
+      </select>
+    </label>
+    <label>Hız:
+      <select id="speedSelect" onchange="changeSpeed(this.value)">
+        <option value="170">Yavaş</option>
+        <option value="130" selected>Normal</option>
+        <option value="90">Hızlı</option>
+      </select>
+    </label>
+    <label>Grafik:
+      <select id="gfxSelect" onchange="changeGfx(this.value)">
+        <option value="normal">Normal</option><option value="high" selected>Yüksek</option>
+      </select>
+    </label>
+  </div>
+
+  <audio id="bgMusic" loop>
+    <source src="https://drive.google.com/uc?export=download&id=1v3o4CWbRi7Zqo38TZHnE0ORMfo2JiHeh" type="audio/mpeg">
+  </audio>
+
+  <script>
+    const canvas = document.getElementById("game"), ctx = canvas.getContext("2d"), box=20;
+    let snake, dir, food, score, high = localStorage.getItem("high")||0, gameLoop, drawLoop;
+    document.getElementById("high").innerText = high;
+
+    const music = document.getElementById("bgMusic");
+    let musicOn = localStorage.getItem("musicOn")==="1";
+    let fps = parseInt(localStorage.getItem("fps")||60);
+    let gfx = localStorage.getItem("gfx")||"high";
+    let speed = parseInt(localStorage.getItem("speed")||130);
+
+    document.getElementById("musicToggle").checked = musicOn;
+    document.getElementById("fpsSelect").value = fps;
+    document.getElementById("gfxSelect").value = gfx;
+    document.getElementById("speedSelect").value = speed;
+
+    function toggleSettings(){ 
+      const p=document.getElementById("settingsPanel");
+      p.style.display = p.style.display==="block"?"none":"block";
+    }
+    function toggleMusic(){
+      musicOn = !musicOn;
+      localStorage.setItem("musicOn", musicOn?1:0);
+      if(musicOn) music.play(); else music.pause();
+    }
+    function changeFPS(val){
+      fps = parseInt(val); localStorage.setItem("fps", val);
+      if(drawLoop){ clearInterval(drawLoop); drawLoop = setInterval(draw,1000/fps); }
+    }
+    function changeGfx(val){ gfx = val; localStorage.setItem("gfx", val); }
+    function changeSpeed(val){ speed = parseInt(val); localStorage.setItem("speed", val); }
+
+    document.addEventListener("keydown", e => {
+      if(e.keyCode===37 && dir!=="RIGHT") dir="LEFT";
+      if(e.keyCode===38 && dir!=="DOWN") dir="UP";
+      if(e.keyCode===39 && dir!=="LEFT") dir="RIGHT";
+      if(e.keyCode===40 && dir!=="UP") dir="DOWN";
+    });
+
+    function setDir(d){ 
+      if(d==="LEFT"&&dir!=="RIGHT") dir=d;
+      if(d==="RIGHT"&&dir!=="LEFT") dir=d;
+      if(d==="UP"&&dir!=="DOWN") dir=d;
+      if(d==="DOWN"&&dir!=="UP") dir=d;
+    }
+
+    function startGame(){
+      snake=[{x:9*box,y:10*box}]; score=0; dir=null;
+      food = {x:rand()*box,y:rand()*box};
+      document.getElementById("menu").style.display="none";
+      document.getElementById("gameover").style.display="none";
+
+      clearInterval(gameLoop); clearInterval(drawLoop);
+      gameLoop = setInterval(updateGame,speed); 
+      drawLoop = setInterval(draw,1000/fps);
+      if(musicOn) music.play();
+    }
+
+    function rand(){ return Math.floor(Math.random()*19+1); }
+
+    function updateGame(){
+      let nx=snake[0].x, ny=snake[0].y;
+      if(dir==="LEFT") nx-=box;
+      if(dir==="UP") ny-=box;
+      if(dir==="RIGHT") nx+=box;
+      if(dir==="DOWN") ny+=box;
+
+      if(nx===food.x&&ny===food.y){
+        score++; food={x:rand()*box,y:rand()*box};
+        if(score>high){ high=score;localStorage.setItem("high",high);document.getElementById("high").innerText=high;}
+      } else snake.pop();
+
+      const newH={x:nx,y:ny};
+      if(nx<0||ny<0||nx>=400||ny>=400||snake.some(s=>s.x===nx&&s.y===ny)){
+        clearInterval(gameLoop); clearInterval(drawLoop);
+        document.getElementById("gameover").style.display="block";
+        return;
+      }
+      snake.unshift(newH);
+      document.getElementById("score").innerText = score;
+    }
+
+    function draw(){
+      ctx.fillStyle = score>=5?"#003300":"#111";
+      ctx.fillRect(0,0,400,400);
+
+      snake.forEach((s,i)=>{
+        ctx.fillStyle = i? (gfx==="high"?"#0f0":"#ff0") : "#0f0";
+        if(gfx==="high"){
+          ctx.beginPath();
+          ctx.arc(s.x+10,s.y+10,10,0,2*Math.PI);
+          ctx.fill();
+        } else ctx.fillRect(s.x,s.y,box,box);
+      });
+
+      ctx.fillStyle="red";
+      if(gfx==="high"){ ctx.beginPath(); ctx.arc(food.x+10,food.y+10,10,0,2*Math.PI); ctx.fill(); }
+      else ctx.fillRect(food.x,food.y,box,box);
+    }
+  </script>
+</body>
+</html>
