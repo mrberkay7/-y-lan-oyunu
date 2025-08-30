@@ -30,11 +30,14 @@
 </head>
 <body>
   <h1>🐍 Berkay000.1 Yılan Oyunu 🐍</h1>
-  <p id="score">Skor: 0 | En Yüksek: 0</p>
+  <p id="score">Skor: 0 | En Yüksek: 0 | Bölüm: 1</p>
   <canvas id="game" width="400" height="400"></canvas>
 
-  <!-- Yön kontrol butonları (telefonda çalışsın diye) -->
-  <div>
+  <!-- Başlat butonu -->
+  <button id="startBtn">🎮 Oyunu Başlat</button>
+
+  <!-- Yön kontrol butonları -->
+  <div id="controls" style="display:none;">
     <button onclick="changeDirection('UP')">⬆️</button><br>
     <button onclick="changeDirection('LEFT')">⬅️</button>
     <button onclick="changeDirection('DOWN')">⬇️</button>
@@ -46,16 +49,35 @@
     const ctx = canvas.getContext("2d");
     const box = 20;
 
-    let snake = [{x: 9 * box, y: 10 * box}];
-    let direction = null;
-    let food = { x: Math.floor(Math.random() * 19 + 1) * box, y: Math.floor(Math.random() * 19 + 1) * box };
-    let score = 0;
+    let snake;
+    let direction;
+    let food;
+    let score;
     let highScore = localStorage.getItem("highScore") || 0;
-    let speed = 200;
+    let speed;
     let game;
+    let level;
 
-    document.getElementById("score").innerText = "Skor: 0 | En Yüksek: " + highScore;
+    const colors = ["#393E46","#1E5128","#3E065F","#053742","#0F3460","#7D0633","#2E4C6D","#301B3F"];
+
+    // Elma resmi
+    const apple = new Image();
+    apple.src = "https://upload.wikimedia.org/wikipedia/commons/1/15/Red_Apple.jpg";
+
     document.addEventListener("keydown", keyDown);
+
+    function initGame() {
+      snake = [{x: 9 * box, y: 10 * box}];
+      direction = null;
+      food = { x: Math.floor(Math.random() * 19 + 1) * box, y: Math.floor(Math.random() * 19 + 1) * box };
+      score = 0;
+      speed = 200;
+      level = 1;
+      document.body.style.backgroundColor = colors[0];
+      document.getElementById("score").innerText = "Skor: 0 | En Yüksek: " + highScore + " | Bölüm: " + level;
+      clearInterval(game);
+      game = setInterval(draw, speed);
+    }
 
     function keyDown(event) {
       if(event.keyCode === 37 && direction !== "RIGHT") direction = "LEFT";
@@ -72,18 +94,21 @@
     }
 
     function draw() {
-      ctx.fillStyle = "#393E46";
+      ctx.fillStyle = colors[(level-1) % colors.length];
       ctx.fillRect(0, 0, 400, 400);
 
+      // Yılanı yuvarlak çiz
       for(let i = 0; i < snake.length; i++) {
-        ctx.fillStyle = (i === 0) ? "lime" : "yellow";
-        ctx.fillRect(snake[i].x, snake[i].y, box, box);
+        ctx.beginPath();
+        ctx.arc(snake[i].x+box/2, snake[i].y+box/2, box/2, 0, Math.PI*2);
+        ctx.fillStyle = (i === 0) ? "lime" : "yellowgreen";
+        ctx.fill();
         ctx.strokeStyle = "#000";
-        ctx.strokeRect(snake[i].x, snake[i].y, box, box);
+        ctx.stroke();
       }
 
-      ctx.fillStyle = "red";
-      ctx.fillRect(food.x, food.y, box, box);
+      // Elmayı çiz
+      ctx.drawImage(apple, food.x, food.y, box, box);
 
       let snakeX = snake[0].x;
       let snakeY = snake[0].y;
@@ -95,18 +120,26 @@
 
       if(snakeX === food.x && snakeY === food.y) {
         score++;
+
+        if(score % 5 === 0 && level < 50) { // 5 elma yerse level atla
+          level++;
+          document.body.style.backgroundColor = colors[level % colors.length];
+          if(speed > 50) {
+            clearInterval(game);
+            speed -= 10;
+            game = setInterval(draw, speed);
+          }
+        }
+
         if(score > highScore) {
           highScore = score;
           localStorage.setItem("highScore", highScore);
         }
-        food = { x: Math.floor(Math.random() * 19 + 1) * box, y: Math.floor(Math.random() * 19 + 1) * box };
 
-        // Hız arttır
-        if(speed > 50) {
-          clearInterval(game);
-          speed -= 5;
-          game = setInterval(draw, speed);
-        }
+        food = {
+          x: Math.floor(Math.random() * 19 + 1) * box,
+          y: Math.floor(Math.random() * 19 + 1) * box
+        };
       } else {
         snake.pop();
       }
@@ -116,23 +149,25 @@
       if(snakeX < 0 || snakeY < 0 || snakeX >= 20 * box || snakeY >= 20 * box || collision(newHead, snake)) {
         clearInterval(game);
         alert("Oyun Bitti! Skor: " + score);
-        // Tekrar başlat
-        snake = [{x: 9 * box, y: 10 * box}];
-        direction = null;
-        score = 0;
-        speed = 200;
-        game = setInterval(draw, speed);
+        document.getElementById("startBtn").style.display = "inline-block";
+        document.getElementById("controls").style.display = "none";
+        return;
       }
 
       snake.unshift(newHead);
-      document.getElementById("score").innerText = "Skor: " + score + " | En Yüksek: " + highScore;
+      document.getElementById("score").innerText = "Skor: " + score + " | En Yüksek: " + highScore + " | Bölüm: " + level;
     }
 
     function collision(head, array) {
       return array.some(segment => segment.x === head.x && segment.y === head.y);
     }
 
-    game = setInterval(draw, speed);
+    // Başlat butonuna basınca oyun açılır
+    document.getElementById("startBtn").addEventListener("click", function() {
+      this.style.display = "none";
+      document.getElementById("controls").style.display = "block";
+      initGame();
+    });
   </script>
 </body>
 </html>
