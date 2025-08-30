@@ -1,57 +1,50 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Berkay - Online Yılan Oyunu</title>
+  <title>🐍 Berkay Yılan Oyunu (Online Skor)</title>
   <style>
     body {
-      margin: 0;
       background: black;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
       color: #00ff00;
       font-family: monospace;
-    }
-    canvas {
-      border: 2px solid #00ff00;
-      background: #111;
-    }
-    #scoreboard {
-      margin-top: 20px;
-      padding: 10px;
-      background: #111;
-      border: 1px solid #00ff00;
-      width: 300px;
       text-align: center;
     }
-    #scoreboard h2 {
-      margin: 0 0 10px 0;
-      font-size: 18px;
+    #scoreboard {
+      border: 1px solid #00ff00;
+      margin: 10px auto;
+      width: 90%;
+      padding: 10px;
     }
-    #scores {
-      font-size: 14px;
-      text-align: left;
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    td, th {
+      border: 1px solid #00ff00;
+      padding: 6px;
     }
   </style>
 </head>
 <body>
   <h1>🐍 Berkay Yılan Oyunu (Online Skor)</h1>
-  <canvas id="gameCanvas" width="400" height="400"></canvas>
-  
+
   <div id="scoreboard">
-    <h2>🌍 Online Skor Tablosu</h2>
-    <div id="scores">Yükleniyor...</div>
+    🌍 Online Skor Tablosu
+    <p id="loading">Yükleniyor...</p>
+    <table id="scores" style="display:none;">
+      <thead>
+        <tr><th>Oyuncu</th><th>Skor</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
   </div>
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js"></script>
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  <script>
-    // Firebase config (seninki)
     const firebaseConfig = {
       apiKey: "AIzaSyDCrdNoQiBpthpUH7m-EbXCgWDPErmcEU8",
       authDomain: "coffee-spark-sample-app-f01da.firebaseapp.com",
@@ -61,110 +54,26 @@
       appId: "1:708637653571:web:a0d3c39606ec28480df2f6"
     };
 
-    // Firebase başlat
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-    // Oyun değişkenleri
-    const canvas = document.getElementById("gameCanvas");
-    const ctx = canvas.getContext("2d");
+    async function loadScores() {
+      const querySnapshot = await getDocs(collection(db, "scores")); // Firestore’da “scores” koleksiyonu lazım
+      const tbody = document.querySelector("#scores tbody");
+      tbody.innerHTML = "";
 
-    let box = 20;
-    let snake = [{x: 9 * box, y: 10 * box}];
-    let direction;
-    let food = {
-      x: Math.floor(Math.random()*19+1) * box,
-      y: Math.floor(Math.random()*19+1) * box
-    };
-    let score = 0;
-
-    document.addEventListener("keydown", dir);
-    function dir(event) {
-      if(event.keyCode == 37 && direction != "RIGHT") direction = "LEFT";
-      else if(event.keyCode == 38 && direction != "DOWN") direction = "UP";
-      else if(event.keyCode == 39 && direction != "LEFT") direction = "RIGHT";
-      else if(event.keyCode == 40 && direction != "UP") direction = "DOWN";
-    }
-
-    function draw() {
-      ctx.fillStyle = "#000";
-      ctx.fillRect(0,0,400,400);
-
-      for(let i = 0; i < snake.length; i++){
-        ctx.fillStyle = (i == 0)? "#00ff00" : "#009900";
-        ctx.fillRect(snake[i].x, snake[i].y, box, box);
-      }
-
-      ctx.fillStyle = "red";
-      ctx.fillRect(food.x, food.y, box, box);
-
-      let snakeX = snake[0].x;
-      let snakeY = snake[0].y;
-
-      if(direction == "LEFT") snakeX -= box;
-      if(direction == "UP") snakeY -= box;
-      if(direction == "RIGHT") snakeX += box;
-      if(direction == "DOWN") snakeY += box;
-
-      if(snakeX == food.x && snakeY == food.y){
-        score++;
-        saveScore(score); // Firebase'e kaydet
-        food = {
-          x: Math.floor(Math.random()*19+1) * box,
-          y: Math.floor(Math.random()*19+1) * box
-        };
-      } else {
-        snake.pop();
-      }
-
-      let newHead = {x: snakeX, y: snakeY};
-
-      // Çarpma kontrolü
-      if(snakeX < 0 || snakeY < 0 || snakeX >= 400 || snakeY >= 400 || collision(newHead, snake)){
-        clearInterval(game);
-        alert("Oyun bitti! Skorun: " + score);
-      }
-
-      snake.unshift(newHead);
-
-      ctx.fillStyle = "white";
-      ctx.fillText("Score: " + score, 10, 20);
-    }
-
-    function collision(head, array){
-      for(let i = 0; i < array.length; i++){
-        if(head.x == array[i].x && head.y == array[i].y){
-          return true;
-        }
-      }
-      return false;
-    }
-
-    let game = setInterval(draw, 100);
-
-    // 🔥 Skor Firebase'e kaydet
-    function saveScore(score){
-      const player = "Berkay_" + Math.floor(Math.random()*10000);
-      db.ref("scores/" + player).set({
-        name: player,
-        score: score
+      querySnapshot.forEach(doc => {
+        const data = doc.data();
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${data.name}</td><td>${data.score}</td>`;
+        tbody.appendChild(tr);
       });
+
+      document.getElementById("loading").style.display = "none";
+      document.getElementById("scores").style.display = "table";
     }
 
-    // 🔥 Skor Tablosunu Güncelle
-    const scoresDiv = document.getElementById("scores");
-    db.ref("scores").on("value", snapshot => {
-      const data = snapshot.val();
-      if(!data){
-        scoresDiv.innerHTML = "Henüz skor yok.";
-        return;
-      }
-      let list = "";
-      Object.values(data).sort((a,b) => b.score - a.score).forEach(p => {
-        list += p.name + ": " + p.score + "<br>";
-      });
-      scoresDiv.innerHTML = list;
-    });
+    loadScores();
   </script>
 </body>
 </html>
