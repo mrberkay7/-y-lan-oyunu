@@ -2,147 +2,98 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
-  <title>2D Korku Oyunu</title>
+  <title>Berkay'ın Korku Oyunu</title>
   <style>
-    body { margin:0; overflow:hidden; background:black; }
-    canvas { display:block; margin:0 auto; background:#111; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: black;
+    }
+    canvas {
+      display: block;
+      margin: auto;
+      background: #111;
+    }
     #jumpscare {
-      position:fixed; top:0; left:0; width:100%; height:100%;
-      background:black; display:none; align-items:center; justify-content:center;
-      color:red; font-size:50px; font-family:sans-serif; z-index:10;
-    }
-    #joystick {
-      position:fixed; bottom:40px; left:40px;
-      width:120px; height:120px; background:rgba(255,255,255,0.1);
-      border-radius:50%; touch-action:none;
-    }
-    #stick {
-      position:absolute; width:60px; height:60px; background:rgba(255,255,255,0.3);
-      border-radius:50%; top:30px; left:30px;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: red;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      font-size: 50px;
+      font-family: sans-serif;
+      z-index: 10;
     }
   </style>
 </head>
 <body>
   <canvas id="game" width="800" height="600"></canvas>
-  <div id="jumpscare">😱 YAKALANDIN!</div>
-  <div id="joystick"><div id="stick"></div></div>
-
-  <audio id="bgmusic" src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-14.mp3" loop autoplay></audio>
+  <div id="jumpscare">AHHHH!</div>
+  <audio id="scareSound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
   <script>
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
 
-    let player = {x:100, y:100, r:15, speed:2};
-    let enemy = {x:500, y:400, r:18, speed:1.2};
-    let walls = [
-      {x:200,y:150,w:400,h:20},
-      {x:200,y:300,w:20,h:200},
-      {x:580,y:300,w:20,h:200}
-    ];
-    let keys = {};
-    let gameOver = false;
+    const playerImg = new Image();
+    playerImg.src = "https://i.ibb.co/Zf2S7R8/player.png"; // Karakter sprite
 
-    document.addEventListener("keydown",e=>keys[e.key]=true);
-    document.addEventListener("keyup",e=>keys[e.key]=false);
+    const player = {
+      x: 100,
+      y: 100,
+      speed: 3,
+      frame: 0,
+      width: 32,
+      height: 32
+    };
 
-    function dist(a,b){ return Math.hypot(a.x-b.x,a.y-b.y); }
+    const keys = {};
+    window.addEventListener("keydown", e => keys[e.key] = true);
+    window.addEventListener("keyup", e => keys[e.key] = false);
 
-    function draw(){
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      ctx.fillStyle="#222";
-      ctx.fillRect(0,0,canvas.width,canvas.height);
+    function update() {
+      if (keys["w"]) player.y -= player.speed;
+      if (keys["s"]) player.y += player.speed;
+      if (keys["a"]) player.x -= player.speed;
+      if (keys["d"]) player.x += player.speed;
 
-      // Duvarlar
-      ctx.fillStyle="#555";
-      walls.forEach(w=>ctx.fillRect(w.x,w.y,w.w,w.h));
+      // Jumpscare tetikleme (örnek alan: x>400 ve y>300 olunca)
+      if (player.x > 400 && player.y > 300) {
+        triggerJumpscare();
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Arka plan
+      ctx.fillStyle = "#222";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       // Oyuncu
-      ctx.fillStyle="white";
-      ctx.beginPath();
-      ctx.arc(player.x,player.y,player.r,0,Math.PI*2);
-      ctx.fill();
-
-      // Düşman
-      ctx.fillStyle="red";
-      ctx.beginPath();
-      ctx.arc(enemy.x,enemy.y,enemy.r,0,Math.PI*2);
-      ctx.fill();
-
-      // Fener efekti
-      let grd = ctx.createRadialGradient(player.x,player.y,50,player.x,player.y,200);
-      grd.addColorStop(0,"rgba(0,0,0,0)");
-      grd.addColorStop(1,"rgba(0,0,0,0.95)");
-      ctx.fillStyle=grd;
-      ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.drawImage(playerImg, player.x, player.y, player.width, player.height);
     }
 
-    function movePlayer(){
-      let dx=0,dy=0;
-      if(keys["ArrowUp"]||keys["w"]) dy=-1;
-      if(keys["ArrowDown"]||keys["s"]) dy=1;
-      if(keys["ArrowLeft"]||keys["a"]) dx=-1;
-      if(keys["ArrowRight"]||keys["d"]) dx=1;
-      player.x+=dx*player.speed;
-      player.y+=dy*player.speed;
+    function gameLoop() {
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
     }
 
-    function moveEnemy(){
-      let dx = player.x - enemy.x;
-      let dy = player.y - enemy.y;
-      let d = Math.hypot(dx,dy);
-      if(d>0){
-        enemy.x += (dx/d)*enemy.speed;
-        enemy.y += (dy/d)*enemy.speed;
-      }
+    function triggerJumpscare() {
+      document.getElementById("jumpscare").style.display = "flex";
+      document.getElementById("scareSound").play();
+      setTimeout(() => {
+        document.getElementById("jumpscare").style.display = "none";
+      }, 1000);
     }
 
-    function checkCollision(){
-      if(dist(player,enemy)<player.r+enemy.r){
-        document.getElementById("jumpscare").style.display="flex";
-        gameOver=true;
-      }
-    }
-
-    function loop(){
-      if(!gameOver){
-        movePlayer();
-        moveEnemy();
-        checkCollision();
-        draw();
-        requestAnimationFrame(loop);
-      }
-    }
-    loop();
-
-    // JOYSTICK
-    const joystick=document.getElementById("joystick");
-    const stick=document.getElementById("stick");
-    let joyActive=false;
-    let center={x:60,y:60};
-    joystick.addEventListener("touchstart",()=>joyActive=true);
-    joystick.addEventListener("touchend",()=>{joyActive=false; stick.style.left="30px"; stick.style.top="30px"; keys={};});
-    joystick.addEventListener("touchmove",e=>{
-      e.preventDefault();
-      if(!joyActive)return;
-      let touch=e.touches[0];
-      let rect=joystick.getBoundingClientRect();
-      let x=touch.clientX-rect.left;
-      let y=touch.clientY-rect.top;
-      let dx=x-center.x, dy=y-center.y;
-      let dist=Math.min(Math.hypot(dx,dy),40);
-      let angle=Math.atan2(dy,dx);
-      stick.style.left=(center.x+dist*Math.cos(angle)-30)+"px";
-      stick.style.top=(center.y+dist*Math.sin(angle)-30)+"px";
-      keys={};
-      if(Math.abs(dx)>Math.abs(dy)){
-        if(dx>10) keys["ArrowRight"]=true;
-        if(dx<-10) keys["ArrowLeft"]=true;
-      } else {
-        if(dy>10) keys["ArrowDown"]=true;
-        if(dy<-10) keys["ArrowUp"]=true;
-      }
-    });
+    gameLoop();
   </script>
 </body>
 </html>
